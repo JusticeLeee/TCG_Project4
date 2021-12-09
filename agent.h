@@ -85,6 +85,41 @@ public:
 	}
 
 	virtual action take_action(const board& state) {
+		//save first layer
+		for (const action::place& move : space) {
+			board after = state;
+			// take legal move
+			if (move.apply(after) == board::legal){
+				action::place tmp = move ;
+				child.push_back(move);
+				//random simulation
+				bool end = false;
+				bool win = true;
+				int count = 0 ;
+				while(!end){
+					bool find = false;
+					std::shuffle(space.begin(), space.end(), engine);
+					for (const action::place& move : space) {
+						if (move.apply(after) == board::legal){
+							find = true;
+							count++; 
+							break;
+						}
+					}
+					if(count %2 == 0 ) win = true;
+					if(count %2 == 1 ) win = false;
+					if(!find) end = true;
+				}
+				if(win) return tmp;
+			}
+		}
+		return action();
+
+
+		//default policy
+
+
+		// random choose here
 		std::shuffle(space.begin(), space.end(), engine);
 		for (const action::place& move : space) {
 			board after = state;
@@ -97,4 +132,5 @@ public:
 private:
 	std::vector<action::place> space;
 	board::piece_type who;
+	std::vector<action::place> child;
 };
