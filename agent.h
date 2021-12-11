@@ -86,43 +86,50 @@ public:
 			throw std::invalid_argument("invalid role: " + role());
 		for (size_t i = 0; i < space.size(); i++){
 			space[i] = action::place(i, who);
+			//create opponet space
 			if(who == board::black) opp_space[i] = action::place(i, board::white);
 			if(who == board::white) opp_space[i] = action::place(i, board::black);
 		}
 	}
 
 	virtual action take_action(const board& state) {
+		simulation_count= stoi(property("N"));
+		weight = stof(property("c"));
 		node* root = new_node(state);
-		while(total_count<200){
+		while(total_count<simulation_count){
+			my_turn = true;
 			update_nodes.push_back(root);
 			insert(root,state);
 		}
 		total_count = 0;
+		if(root->childs.size()==0) return action();
 
 		//get best child 
 		int index = -1;
 		float max=-100;
-		if(root->childs.size()==0) return action();
+		
 		for(size_t i = 0 ; i <root->childs.size(); i++){
-			// std::cout<<"root->childs[i]->uct_value"<<root->childs[i]->uct_value<<std::endl;
 			if(root->childs[i]->uct_value>max){
 				max = root->childs[i]->uct_value;
 				index = i;
 			}
 		}
-		debug<<root->childs[index]->state<<std::endl;
-		debug<<"root->childs.size():"<<root->childs.size()<<std::endl;
-		debug<<"！！！！！！！！action index :"<<index<<std::endl;
-		debug<<state<<std::endl;
+		// std::cout<<"root->childs.size():"<<root->childs.size()<<std::endl;
+		// std::cout<<"！！！！！！！！action index :"<<index<<std::endl;
+		// std::cout<<"ORG"<<std::endl;
+		// std::cout<<state<<std::endl;
+		// std::cout<<"It shoud be"<<std::endl;
+		// std::cout<<root->childs[index]->state<<std::endl;
 		for (const action::place& move : space) {
 			board after = state;
 			if (move.apply(after) == board::legal){
 				if(after == root->childs[index]->state){
+					delete_node(root);
 					return move;
 				}
 			}
 		}
-		
+		delete_node(root);
 		return action();
 	}
 
@@ -133,38 +140,61 @@ public:
 		float uct_value;
 		std::vector<node*> childs;
 	};
-
+	void delete_node(struct node * root){
+		for(size_t i = 0 ; i<root->childs.size(); i++)
+			delete_node(root->childs[i]);
+		delete(root);
+	}
 	bool simulation(struct node * current_node){
 		board after = current_node->state;
 		bool end = false;
 		bool win = true;
 		int count = 0 ;
+		if(who == board::white) debug<<"who == board::white"<<std::endl;
+		if(who == board::black) debug<<"who == board::black"<<std::endl;
+
+		if(my_turn==true) {
+			debug<<"my_turn==true"<<std::endl;
+			debug<<current_node->state<<std::endl;
+			win = true;
+			count = 1;
+		}
+		if(my_turn==false) {
+			debug<<"my_turn==false"<<std::endl;
+			debug<<current_node->state<<std::endl;
+			win = false;
+			count = 0;
+		}
 		while(!end){
 			bool exist_legal_move = false;
-
 			if(count %2 == 0 ){// my move
 				std::shuffle(space.begin(), space.end(), engine);
 				for (const action::place& move : space) {
 					if (move.apply(after) == board::legal){
+						debug<<"count ==0 have legal move"<<std::endl;
+						win = true;
 						exist_legal_move = true;
 						count++; 
 						break;
 					}
 				}
-				win = true;
 			}
 			else if(count %2 == 1 ) {// opponent move
 				std::shuffle(opp_space.begin(), opp_space.end(), engine);
 				for (const action::place& move : opp_space) {
 					if (move.apply(after) == board::legal){
+						debug<<"count ==1 have legal move"<<std::endl;
+						win = false;
 						exist_legal_move = true;
 						count++; 
 						break;
 					}
 				}
-				win = false;
 			}
-			if(!exist_legal_move) end = true;
+			if(!exist_legal_move) {
+				debug<<"**********************end**********************"<<std::endl;
+				end = true;
+			}
 		}
 		total_count++;
 		return win;
@@ -183,7 +213,8 @@ public:
 	void insert(struct node* root, board state){
 		// collect child
 		size_t number_of_legal_move = 0;
-		if(update_nodes.size()%2 == 1){
+
+		if(my_turn==true){
 			for (const action::place& move : space) {
 				board after = state;
 				if (move.apply(after) == board::legal){
@@ -193,8 +224,9 @@ public:
 					}
 				}
 			}
+			my_turn = false;
 		}
-		else{
+		else if (my_turn == false){
 			for (const action::place& move : opp_space) {
 				board after = state;
 				if (move.apply(after) == board::legal){
@@ -204,6 +236,7 @@ public:
 					}
 				}
 			}
+			my_turn = true;
 		}
 		// do simulation
 		if(root->visit_count == 0) {
@@ -230,6 +263,8 @@ public:
 			} 
 
 			if(do_expand){
+				std::shuffle(root->childs.begin(), root->childs.end(), engine);
+
 				for(size_t i = 0 ; i<root->childs.size(); i++){
 					if(root->childs[i]->uct_value>max && root->childs[i]->visit_count==0){
 						max = root->childs[i]->uct_value;
@@ -242,9 +277,6 @@ public:
 
 			}else{
 				for(size_t i = 0 ; i<root->childs.size(); i++){
-					// std::cout<<"max :"<<max<<std::endl;
-					// std::cout<<"root->childs[i]->uct_value"<<root->childs[i]->uct_value<<std::endl;
-					// std::cout<<"root->childs[i]->visit_count"<<root->childs[i]->visit_count<<std::endl;
 					if(root->childs[i]->uct_value>max){
 						max = root->childs[i]->uct_value;
 						index = i;
@@ -258,14 +290,14 @@ public:
 	}
 
 	float UCT_value(float win_count, float visit_count){
-		return  win_count/visit_count + 0.1* log(total_count) / visit_count ;
+		return  win_count/visit_count + weight * log(total_count) / visit_count ;
 	}
 
 	void update(bool win){
 		debug<<update_nodes.size()<<std::endl;
 		float value = 0;
 		if(win) value = 1;
-		// std::cout<<"win = "<<win<<std::endl;
+		debug<<"win = "<<win<<std::endl;
 		for (size_t i = 0 ; i< update_nodes.size() ; i++){
 			update_nodes[i]->visit_count++;
 			update_nodes[i]->win_count += value;	
@@ -278,7 +310,10 @@ public:
 	}
 	float total_count = 0 ;
 	std::vector<node*> update_nodes;
+	bool my_turn;
 private:
+	int simulation_count;
+	float weight;
 	std::vector<action::place> space;
 	std::vector<action::place> opp_space;
 	board::piece_type who;
