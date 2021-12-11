@@ -18,6 +18,7 @@
 #include "action.h"
 #include <fstream>
 #include <unistd.h>
+#include <ctime>
 
 std::ostream& debug = *(new std::ofstream);
 // std::ostream& debug = std::cout;
@@ -96,11 +97,18 @@ public:
 		simulation_count= stoi(property("N"));
 		weight = stof(property("c"));
 		node* root = new_node(state);
-		while(total_count<simulation_count){
+
+		std::clock_t start = std::clock(); // get current time
+		while(1){
 			my_turn = true;
 			update_nodes.push_back(root);
 			insert(root,state);
+			if( (std::clock()-start)/ (double) CLOCKS_PER_SEC > 1) {
+				// std::cout<<total_count<<std::endl;
+				break;
+			}
 		}
+
 		total_count = 0;
 		if(root->childs.size()==0) return action();
 
