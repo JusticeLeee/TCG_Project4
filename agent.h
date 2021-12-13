@@ -96,30 +96,60 @@ public:
 	virtual action take_action(const board& state) {
 		simulation_count= stoi(property("N"));
 		weight = stof(property("c"));
+		std::string timer = property("timer");
+		std::string choose = property("choose");
 		node* root = new_node(state);
 
-		std::clock_t start = std::clock(); // get current time
-		while(1){
-			my_turn = true;
-			update_nodes.push_back(root);
-			insert(root,state);
-			if( (std::clock()-start)/ (double) CLOCKS_PER_SEC > 1) {
-				// std::cout<<total_count<<std::endl;
-				break;
+		if(timer=="y"){
+			std::clock_t start = std::clock(); // get current time
+			while(1){
+				my_turn = true;
+				update_nodes.push_back(root);
+				insert(root,state);
+				if( (std::clock()-start)/ (double) CLOCKS_PER_SEC > 1) {
+					// std::cout<<total_count<<std::endl;
+					break;
+				}
+			}
+		}
+		if(timer=="n"){
+			while(total_count<simulation_count){
+				my_turn = true;
+				update_nodes.push_back(root);
+				insert(root,state);
 			}
 		}
 
 		total_count = 0;
 		if(root->childs.size()==0) return action();
 
-		//get best child 
+		//choose best child 
 		int index = -1;
 		float max=-100;
 		
-		for(size_t i = 0 ; i <root->childs.size(); i++){
-			if(root->childs[i]->uct_value>max){
-				max = root->childs[i]->uct_value;
-				index = i;
+		if(choose=="win_rate"){
+			for(size_t i = 0 ; i <root->childs.size(); i++){
+				float cuurent_win_rate = root->childs[i]->win_count / root->childs[i]->visit_count ;
+				if(cuurent_win_rate>max){
+					max = cuurent_win_rate;
+					index = i;
+				}
+			}
+		}
+		if(choose=="visit_count"){
+			for(size_t i = 0 ; i <root->childs.size(); i++){
+				if(root->childs[i]->visit_count>max){
+					max = root->childs[i]->visit_count;
+					index = i;
+				}
+			}
+		}
+		if(choose=="uct_value"){
+			for(size_t i = 0 ; i <root->childs.size(); i++){
+				if(root->childs[i]->visit_count>max){
+					max = root->childs[i]->visit_count;
+					index = i;
+				}
 			}
 		}
 		// std::cout<<"root->childs.size():"<<root->childs.size()<<std::endl;
@@ -143,8 +173,8 @@ public:
 
 	struct node{
 		board state;
-		int visit_count;
-		int win_count;
+		float visit_count;
+		float win_count;
 		float uct_value;
 		std::vector<node*> childs;
 	};
