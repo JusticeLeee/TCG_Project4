@@ -77,7 +77,7 @@ protected:
  */
 class player : public random_agent {
 public:
-	player(const std::string& args = "") : random_agent("name=random role=unknown " + args),
+	player(const std::string& args = "") :random_agent("name=random role=unknown " + args),
 		space(board::size_x * board::size_y), opp_space(board::size_x * board::size_y), who(board::empty) {
 		if (name().find_first_of("[]():; ") != std::string::npos)
 			throw std::invalid_argument("invalid name: " + name());
@@ -92,12 +92,11 @@ public:
 			if(who == board::white) opp_space[i] = action::place(i, board::black);
 		}
 	}
-
 	virtual action take_action(const board& state) {
-		simulation_count= stoi(property("N"));
+		simulation_count = stoi(property("N"));
 		weight = stof(property("c"));
-		std::string timer = property("timer");
-		std::string choose = property("choose");
+		timer = property("timer");
+		choose = property("choose");
 		node* root = new_node(state);
 
 		if(timer=="y"){
@@ -195,14 +194,14 @@ public:
 		if(my_turn==true) {
 			//debug<<"my_turn==true"<<std::endl;
 			//debug<<current_node->state<<std::endl;
-			win = true;
-			count = 1;
+			win = false;
+			count = 0;
 		}
 		else {
 			//debug<<"my_turn==false"<<std::endl;
 			//debug<<current_node->state<<std::endl;
-			win = false;
-			count = 0;
+			win = true;
+			count = 1;
 		}
 		while(!end){
 			bool exist_legal_move = false;
@@ -263,7 +262,6 @@ public:
 					}
 				}
 			}
-			my_turn = false;
 		}
 		else {
 			for (const action::place& move : opp_space) {
@@ -275,7 +273,6 @@ public:
 					}
 				}
 			}
-			my_turn = true;
 		}
 		// do simulation
 		if(root->visit_count == 0) {
@@ -311,9 +308,6 @@ public:
 					}
 				}
 				//debug<<"expand index :"<<index<<std::endl;
-				update_nodes.push_back(root->childs[index]);
-				insert(root->childs[index],root->childs[index]->state);
-
 			}else{
 				for(size_t i = 0 ; i<root->childs.size(); i++){
 					if(root->childs[i]->uct_value>max){
@@ -322,9 +316,10 @@ public:
 					}
 				}
 				//debug<<"select index:"<<index<<std::endl;
-				update_nodes.push_back(root->childs[index]);
-				insert(root->childs[index],root->childs[index]->state);
 			}
+			my_turn = !my_turn;
+			update_nodes.push_back(root->childs[index]);
+			insert(root->childs[index],root->childs[index]->state);
 		}
 	}
 
@@ -340,19 +335,29 @@ public:
 		for (size_t i = 0 ; i< update_nodes.size() ; i++){
 			update_nodes[i]->visit_count++;
 			update_nodes[i]->win_count += value;	
-			update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);		
-			// //std::cout<<"i = "<< i<<"update_nodes[i]->visit_count: "<<update_nodes[i]->visit_count<<std::endl;
+			update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);
+			
+			// if(i%2==1)
+			// 	update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);
+			// else
+			// 	update_nodes[i]->uct_value = UCT_value(update_nodes[i]->visit_count-update_nodes[i]->win_count, update_nodes[i]->visit_count);
+			//std::cout<<"i = "<< i<<"update_nodes[i]->visit_count: "<<update_nodes[i]->visit_count<<std::endl;
 		}
 		// clear total_count and update_nodes
 		update_nodes.clear();
-
 	}
 	float total_count = 0 ;
 	std::vector<node*> update_nodes;
 	bool my_turn;
 private:
+	// int simulation_count = stoi(property("N"));
+	// float weight = stof(property("c"));
+	// std::string timer = property("timer");
+	// std::string choose = property("choose");
 	int simulation_count;
 	float weight;
+	std::string choose;
+	std::string timer;
 	std::vector<action::place> space;
 	std::vector<action::place> opp_space;
 	board::piece_type who;
