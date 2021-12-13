@@ -112,9 +112,8 @@ public:
 				}
 			}
 			std::cout<<"total_count ="<<total_count<<std::endl;
-
 		}
-		if(timer=="n"){
+		else if(timer=="n"){
 			while(total_count<simulation_count){
 				my_turn = true;
 				update_nodes.push_back(root);
@@ -138,7 +137,7 @@ public:
 				}
 			}
 		}
-		if(choose=="visit_count"){
+		else if(choose=="visit_count"){
 			for(size_t i = 0 ; i <root->childs.size(); i++){
 				if(root->childs[i]->visit_count>max){
 					max = root->childs[i]->visit_count;
@@ -146,10 +145,10 @@ public:
 				}
 			}
 		}
-		if(choose=="uct_value"){
+		else if(choose=="uct_value"){
 			for(size_t i = 0 ; i <root->childs.size(); i++){
-				if(root->childs[i]->visit_count>max){
-					max = root->childs[i]->visit_count;
+				if(root->childs[i]->uct_value>max){
+					max = root->childs[i]->uct_value;
 					index = i;
 				}
 			}
@@ -190,8 +189,8 @@ public:
 		bool end = false;
 		bool win = true;
 		int count = 0 ;
-		if(who == board::white) //debug<<"who == board::white"<<std::endl;
-		if(who == board::black) //debug<<"who == board::black"<<std::endl;
+		// if(who == board::white) //debug<<"who == board::white"<<std::endl;
+		// if(who == board::black) //debug<<"who == board::black"<<std::endl;
 
 		if(my_turn==true) {
 			//debug<<"my_turn==true"<<std::endl;
@@ -199,7 +198,7 @@ public:
 			win = true;
 			count = 1;
 		}
-		if(my_turn==false) {
+		else {
 			//debug<<"my_turn==false"<<std::endl;
 			//debug<<current_node->state<<std::endl;
 			win = false;
@@ -266,7 +265,7 @@ public:
 			}
 			my_turn = false;
 		}
-		else if (my_turn == false){
+		else {
 			for (const action::place& move : opp_space) {
 				board after = state;
 				if (move.apply(after) == board::legal){
