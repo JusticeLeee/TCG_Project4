@@ -20,8 +20,8 @@
 #include <unistd.h>
 #include <ctime>
 
-std::ostream& debug = *(new std::ofstream);
-// std::ostream& debug = std::cout;
+// std::ostream& //debug = *(new std::ofstream);
+// std::ostream& //debug = //std::cout;
 
 class agent {
 public:
@@ -107,10 +107,12 @@ public:
 				update_nodes.push_back(root);
 				insert(root,state);
 				if( (std::clock()-start)/ (double) CLOCKS_PER_SEC > 1) {
-					// std::cout<<total_count<<std::endl;
+					// //std::cout<<total_count<<std::endl;
 					break;
 				}
 			}
+			std::cout<<"total_count ="<<total_count<<std::endl;
+
 		}
 		if(timer=="n"){
 			while(total_count<simulation_count){
@@ -152,12 +154,12 @@ public:
 				}
 			}
 		}
-		// std::cout<<"root->childs.size():"<<root->childs.size()<<std::endl;
-		// std::cout<<"！！！！！！！！action index :"<<index<<std::endl;
-		// std::cout<<"ORG"<<std::endl;
-		// std::cout<<state<<std::endl;
-		// std::cout<<"It shoud be"<<std::endl;
-		// std::cout<<root->childs[index]->state<<std::endl;
+		// //std::cout<<"root->childs.size():"<<root->childs.size()<<std::endl;
+		// //std::cout<<"！！！！！！！！action index :"<<index<<std::endl;
+		// //std::cout<<"ORG"<<std::endl;
+		// //std::cout<<state<<std::endl;
+		// //std::cout<<"It shoud be"<<std::endl;
+		// //std::cout<<root->childs[index]->state<<std::endl;
 		for (const action::place& move : space) {
 			board after = state;
 			if (move.apply(after) == board::legal){
@@ -188,18 +190,18 @@ public:
 		bool end = false;
 		bool win = true;
 		int count = 0 ;
-		if(who == board::white) debug<<"who == board::white"<<std::endl;
-		if(who == board::black) debug<<"who == board::black"<<std::endl;
+		if(who == board::white) //debug<<"who == board::white"<<std::endl;
+		if(who == board::black) //debug<<"who == board::black"<<std::endl;
 
 		if(my_turn==true) {
-			debug<<"my_turn==true"<<std::endl;
-			debug<<current_node->state<<std::endl;
+			//debug<<"my_turn==true"<<std::endl;
+			//debug<<current_node->state<<std::endl;
 			win = true;
 			count = 1;
 		}
 		if(my_turn==false) {
-			debug<<"my_turn==false"<<std::endl;
-			debug<<current_node->state<<std::endl;
+			//debug<<"my_turn==false"<<std::endl;
+			//debug<<current_node->state<<std::endl;
 			win = false;
 			count = 0;
 		}
@@ -209,7 +211,7 @@ public:
 				std::shuffle(space.begin(), space.end(), engine);
 				for (const action::place& move : space) {
 					if (move.apply(after) == board::legal){
-						debug<<"count ==0 have legal move"<<std::endl;
+						//debug<<"count ==0 have legal move"<<std::endl;
 						win = true;
 						exist_legal_move = true;
 						count++; 
@@ -221,7 +223,7 @@ public:
 				std::shuffle(opp_space.begin(), opp_space.end(), engine);
 				for (const action::place& move : opp_space) {
 					if (move.apply(after) == board::legal){
-						debug<<"count ==1 have legal move"<<std::endl;
+						//debug<<"count ==1 have legal move"<<std::endl;
 						win = false;
 						exist_legal_move = true;
 						count++; 
@@ -230,7 +232,7 @@ public:
 				}
 			}
 			if(!exist_legal_move) {
-				debug<<"**********************end**********************"<<std::endl;
+				//debug<<"**********************end**********************"<<std::endl;
 				end = true;
 			}
 		}
@@ -244,7 +246,7 @@ public:
 		current_node->win_count = 0;
 		current_node->uct_value = 10000;
 		current_node->state = state;
-		// std::cout<<state<<std::endl;
+		// //std::cout<<state<<std::endl;
 		return current_node;
 	}
 
@@ -293,7 +295,7 @@ public:
 			}
 			// check need expand or not
 			if(child_visit_count == number_of_legal_move) do_expand = false;
-			debug<<"child_visit_count"<<child_visit_count<<", number_of_legal_move"<<number_of_legal_move<<std::endl;
+			//debug<<"child_visit_count"<<child_visit_count<<", number_of_legal_move"<<number_of_legal_move<<std::endl;
 			if(number_of_legal_move==0){
 				bool win = simulation(root);
 				update(win);
@@ -309,7 +311,7 @@ public:
 						index = i;
 					}
 				}
-				debug<<"expand index :"<<index<<std::endl;
+				//debug<<"expand index :"<<index<<std::endl;
 				update_nodes.push_back(root->childs[index]);
 				insert(root->childs[index],root->childs[index]->state);
 
@@ -320,7 +322,7 @@ public:
 						index = i;
 					}
 				}
-				debug<<"select index:"<<index<<std::endl;
+				//debug<<"select index:"<<index<<std::endl;
 				update_nodes.push_back(root->childs[index]);
 				insert(root->childs[index],root->childs[index]->state);
 			}
@@ -332,15 +334,15 @@ public:
 	}
 
 	void update(bool win){
-		debug<<update_nodes.size()<<std::endl;
+		//debug<<update_nodes.size()<<std::endl;
 		float value = 0;
 		if(win) value = 1;
-		debug<<"win = "<<win<<std::endl;
+		//debug<<"win = "<<win<<std::endl;
 		for (size_t i = 0 ; i< update_nodes.size() ; i++){
 			update_nodes[i]->visit_count++;
 			update_nodes[i]->win_count += value;	
 			update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);		
-			// std::cout<<"i = "<< i<<"update_nodes[i]->visit_count: "<<update_nodes[i]->visit_count<<std::endl;
+			// //std::cout<<"i = "<< i<<"update_nodes[i]->visit_count: "<<update_nodes[i]->visit_count<<std::endl;
 		}
 		// clear total_count and update_nodes
 		update_nodes.clear();
