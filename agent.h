@@ -328,20 +328,16 @@ public:
 	}
 
 	void update(bool win){
-		//debug<<update_nodes.size()<<std::endl;
 		float value = 0;
 		if(win) value = 1;
 		//debug<<"win = "<<win<<std::endl;
 		for (size_t i = 0 ; i< update_nodes.size() ; i++){
 			update_nodes[i]->visit_count++;
-			update_nodes[i]->win_count += value;	
-			update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);
-			
-			// if(i%2==1)
-			// 	update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);
-			// else
-			// 	update_nodes[i]->uct_value = UCT_value(update_nodes[i]->visit_count-update_nodes[i]->win_count, update_nodes[i]->visit_count);
-			//std::cout<<"i = "<< i<<"update_nodes[i]->visit_count: "<<update_nodes[i]->visit_count<<std::endl;
+			update_nodes[i]->win_count += value;				
+			if(i%2==1)
+				update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);
+			else
+				update_nodes[i]->uct_value = UCT_value(update_nodes[i]->visit_count-update_nodes[i]->win_count, update_nodes[i]->visit_count);
 		}
 		// clear total_count and update_nodes
 		update_nodes.clear();
@@ -350,10 +346,6 @@ public:
 	std::vector<node*> update_nodes;
 	bool my_turn;
 private:
-	// int simulation_count = stoi(property("N"));
-	// float weight = stof(property("c"));
-	// std::string timer = property("timer");
-	// std::string choose = property("choose");
 	int simulation_count;
 	float weight;
 	std::string choose;
