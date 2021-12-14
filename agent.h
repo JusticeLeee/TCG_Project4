@@ -171,6 +171,7 @@ public:
 		float visit_count;
 		float win_count;
 		float uct_value;
+		size_t child_visit_count;
 		std::vector<node*> childs;
 	};
 	void delete_node(struct node * root){
@@ -231,6 +232,7 @@ public:
 		current_node->visit_count = 0;
 		current_node->win_count = 0;
 		current_node->uct_value = 10000;
+		current_node->child_visit_count =0;
 		current_node->state = state;
 		return current_node;
 	}
@@ -238,25 +240,26 @@ public:
 	void insert(struct node* root, board state){
 		// collect child
 		size_t number_of_legal_move = 0;
-
-		if(my_turn==true){
-			for (const action::place& move : space) {
-				board after = state;
-				if (move.apply(after) == board::legal){
-					if(root->childs.size()<=number_of_legal_move++){
-						struct node * current_node = new_node(after);		
-						root->childs.push_back(current_node);
+		if(root->childs.size()==0){
+			if(my_turn==true){
+				for (const action::place& move : space) {
+					board after = state;
+					if (move.apply(after) == board::legal){
+						if(root->childs.size()<=number_of_legal_move++){
+							struct node * current_node = new_node(after);		
+							root->childs.push_back(current_node);
+						}
 					}
 				}
 			}
-		}
-		else {
-			for (const action::place& move : opp_space) {
-				board after = state;
-				if (move.apply(after) == board::legal){
-					if(root->childs.size()<=number_of_legal_move++){
-						struct node * current_node = new_node(after);		
-						root->childs.push_back(current_node);
+			else {
+				for (const action::place& move : opp_space) {
+					board after = state;
+					if (move.apply(after) == board::legal){
+						if(root->childs.size()<=number_of_legal_move++){
+							struct node * current_node = new_node(after);		
+							root->childs.push_back(current_node);
+						}
 					}
 				}
 			}
@@ -269,17 +272,16 @@ public:
 		else {
 			int index = -1;
 			float max=-100;
-			size_t child_visit_count = 0;
 			bool do_expand = true;
 			//get number of child have been visited
-			for(size_t i = 0 ; i<root->childs.size(); i++) {
-				if(root->childs[i]->visit_count!=0)
-					child_visit_count++;
-			}
+			// for(size_t i = 0 ; i<root->childs.size(); i++) {
+			// 	if(root->childs[i]->visit_count!=0)
+			// 		child_visit_count++;
+			// }
 			// check need expand or not
-			if(child_visit_count == number_of_legal_move) do_expand = false;
+			if(root->child_visit_count == root->childs.size()) do_expand = false;
 			//debug<<"child_visit_count"<<child_visit_count<<", number_of_legal_move"<<number_of_legal_move<<std::endl;
-			if(number_of_legal_move==0){
+			if(root->childs.size()==0){
 				bool win = simulation(root);
 				update(win);
 				return;
@@ -291,6 +293,7 @@ public:
 					if(root->childs[i]->uct_value>max && root->childs[i]->visit_count==0){
 						max = root->childs[i]->uct_value;
 						index = i;
+						root->child_visit_count++;
 					}
 				}
 				//debug<<"expand index :"<<index<<std::endl;
