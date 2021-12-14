@@ -336,12 +336,6 @@ public:
 			update_nodes[i]->visit_count++;
 			update_nodes[i]->win_count += value;	
 			update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);
-			
-			// if(i%2==1)
-			// 	update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);
-			// else
-			// 	update_nodes[i]->uct_value = UCT_value(update_nodes[i]->visit_count-update_nodes[i]->win_count, update_nodes[i]->visit_count);
-			//std::cout<<"i = "<< i<<"update_nodes[i]->visit_count: "<<update_nodes[i]->visit_count<<std::endl;
 		}
 		// clear total_count and update_nodes
 		update_nodes.clear();
