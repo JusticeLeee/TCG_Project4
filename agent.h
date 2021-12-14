@@ -313,7 +313,7 @@ public:
 		for (size_t i = 0 ; i< update_nodes.size() ; i++){
 			update_nodes[i]->visit_count++;
 			update_nodes[i]->win_count += value;		
-			if(cond=="opponent_choose_best"){		
+			if(cond=="op_best"){	
 				if(i%2==1)
 					update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);
 				else
