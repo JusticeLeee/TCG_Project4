@@ -97,6 +97,7 @@ public:
 		weight = stof(property("c"));
 		timer = property("timer");
 		choose = property("choose");
+		cond = property("cond");
 		node* root = new_node(state);
 
 		if(timer=="y"){
@@ -239,16 +240,13 @@ public:
 
 	void insert(struct node* root, board state){
 		// collect child
-		size_t number_of_legal_move = 0;
 		if(root->childs.size()==0){
 			if(my_turn==true){
 				for (const action::place& move : space) {
 					board after = state;
 					if (move.apply(after) == board::legal){
-						if(root->childs.size()<=number_of_legal_move++){
-							struct node * current_node = new_node(after);		
-							root->childs.push_back(current_node);
-						}
+						struct node * current_node = new_node(after);		
+						root->childs.push_back(current_node);
 					}
 				}
 			}
@@ -256,10 +254,8 @@ public:
 				for (const action::place& move : opp_space) {
 					board after = state;
 					if (move.apply(after) == board::legal){
-						if(root->childs.size()<=number_of_legal_move++){
-							struct node * current_node = new_node(after);		
-							root->childs.push_back(current_node);
-						}
+						struct node * current_node = new_node(after);		
+						root->childs.push_back(current_node);
 					}
 				}
 			}
@@ -273,11 +269,6 @@ public:
 			int index = -1;
 			float max=-100;
 			bool do_expand = true;
-			//get number of child have been visited
-			// for(size_t i = 0 ; i<root->childs.size(); i++) {
-			// 	if(root->childs[i]->visit_count!=0)
-			// 		child_visit_count++;
-			// }
 			// check need expand or not
 			if(root->child_visit_count == root->childs.size()) do_expand = false;
 			//debug<<"child_visit_count"<<child_visit_count<<", number_of_legal_move"<<number_of_legal_move<<std::endl;
@@ -321,11 +312,15 @@ public:
 		if(win) value = 1;
 		for (size_t i = 0 ; i< update_nodes.size() ; i++){
 			update_nodes[i]->visit_count++;
-			update_nodes[i]->win_count += value;				
-			if(i%2==1)
+			update_nodes[i]->win_count += value;		
+			if(cond=="opponent_choose_best"){		
+				if(i%2==1)
+					update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);
+				else
+					update_nodes[i]->uct_value = UCT_value(update_nodes[i]->visit_count-update_nodes[i]->win_count, update_nodes[i]->visit_count);
+			}else{
 				update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);
-			else
-				update_nodes[i]->uct_value = UCT_value(update_nodes[i]->visit_count-update_nodes[i]->win_count, update_nodes[i]->visit_count);
+			}
 		}
 		// clear total_count and update_nodes
 		update_nodes.clear();
@@ -338,6 +333,7 @@ private:
 	float weight;
 	std::string choose;
 	std::string timer;
+	std::string cond;
 	std::vector<action::place> space;
 	std::vector<action::place> opp_space;
 	board::piece_type who;
