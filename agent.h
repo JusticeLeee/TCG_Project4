@@ -152,12 +152,7 @@ public:
 				}
 			}
 		}
-		// //std::cout<<"root->childs.size():"<<root->childs.size()<<std::endl;
-		// //std::cout<<"！！！！！！！！action index :"<<index<<std::endl;
-		// //std::cout<<"ORG"<<std::endl;
-		// //std::cout<<state<<std::endl;
-		// //std::cout<<"It shoud be"<<std::endl;
-		// //std::cout<<root->childs[index]->state<<std::endl;
+		//get best child
 		for (const action::place& move : space) {
 			board after = state;
 			if (move.apply(after) == board::legal){
@@ -188,18 +183,12 @@ public:
 		bool end = false;
 		bool win = true;
 		int count = 0 ;
-		// if(who == board::white) //debug<<"who == board::white"<<std::endl;
-		// if(who == board::black) //debug<<"who == board::black"<<std::endl;
 
 		if(my_turn==true) {
-			//debug<<"my_turn==true"<<std::endl;
-			//debug<<current_node->state<<std::endl;
 			win = false;
 			count = 0;
 		}
 		else {
-			//debug<<"my_turn==false"<<std::endl;
-			//debug<<current_node->state<<std::endl;
 			win = true;
 			count = 1;
 		}
@@ -230,7 +219,6 @@ public:
 				}
 			}
 			if(!exist_legal_move) {
-				//debug<<"**********************end**********************"<<std::endl;
 				end = true;
 			}
 		}
@@ -244,7 +232,6 @@ public:
 		current_node->win_count = 0;
 		current_node->uct_value = 10000;
 		current_node->state = state;
-		// //std::cout<<state<<std::endl;
 		return current_node;
 	}
 
@@ -300,7 +287,6 @@ public:
 
 			if(do_expand){
 				std::shuffle(root->childs.begin(), root->childs.end(), engine);
-
 				for(size_t i = 0 ; i<root->childs.size(); i++){
 					if(root->childs[i]->uct_value>max && root->childs[i]->visit_count==0){
 						max = root->childs[i]->uct_value;
@@ -330,7 +316,6 @@ public:
 	void update(bool win){
 		float value = 0;
 		if(win) value = 1;
-		//debug<<"win = "<<win<<std::endl;
 		for (size_t i = 0 ; i< update_nodes.size() ; i++){
 			update_nodes[i]->visit_count++;
 			update_nodes[i]->win_count += value;				
