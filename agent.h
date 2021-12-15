@@ -19,7 +19,7 @@
 #include <fstream>
 #include <unistd.h>
 #include <ctime>
-
+#include <thread>
 // std::ostream& //debug = *(new std::ofstream);
 // std::ostream& //debug = //std::cout;
 
@@ -44,6 +44,13 @@ public:
 	virtual void notify(const std::string& msg) { meta[msg.substr(0, msg.find('='))] = { msg.substr(msg.find('=') + 1) }; }
 	virtual std::string name() const { return property("name"); }
 	virtual std::string role() const { return property("role"); }
+	virtual int a() const { return stoi(property("N")); }
+	virtual int b() const { return stoi(property("num_worker")); }
+	virtual float c() const { return stof(property("c")); }
+	virtual std::string d() const { return property("choose"); }
+	virtual std::string e() const { return property("cond"); }
+	virtual std::string f() const { return property("timer"); }
+
 
 protected:
 	typedef std::string key;
@@ -91,79 +98,69 @@ public:
 			if(who == board::black) opp_space[i] = action::place(i, board::white);
 			if(who == board::white) opp_space[i] = action::place(i, board::black);
 		}
+		// simulation_count = stoi(property("N"));
+		// num_worker = stoi(property("num_worker"));
+		// weight = stof(property("c"));
+		// timer = property("timer");
+		// choose = property("choose");
+		// cond = property("cond");
+		// std::cout<<num_worker<<std::endl;
+		for(int i = 0 ; i < num_worker ;i++){
+			thread_space[i] = space;
+			thread_opp_space[i] = opp_space;
+		}
 	}
 	virtual action take_action(const board& state) {
 		simulation_count = stoi(property("N"));
+		num_worker = stoi(property("num_worker"));
 		weight = stof(property("c"));
 		timer = property("timer");
 		choose = property("choose");
 		cond = property("cond");
-		node* root = new_node(state);
-
-		if(timer=="y"){
-			std::clock_t start = std::clock(); // get current time
-			while(1){
-				my_turn = true;
-				update_nodes.push_back(root);
-				insert(root,state);
-				if( (std::clock()-start)/ (double) CLOCKS_PER_SEC > 1) {
-					// //std::cout<<total_count<<std::endl;
-					break;
-				}
-			}
-			std::cout<<"total_count ="<<total_count<<std::endl;
+		std::thread threads[num_worker];
+		node* roots[num_worker];
+		std::clock_t start = std::chrono::high_resolution_clock::now().time_since_epoch().count(); // get current time
+		for(int i = 0 ;i<num_worker; i ++){
+			roots[i] = new_node(state);
+			threads[i] = std::thread(&player::build_tree,this,roots[i],state,i);
+			// std::cout<<"i: "<<i<<"cost time:"<<(std::clock()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
 		}
-		else if(timer=="n"){
-			while(total_count<simulation_count){
-				my_turn = true;
-				update_nodes.push_back(root);
-				insert(root,state);
+		for(int i = 0 ;i<num_worker; i ++) threads[i].join();
+		std::cout<<"cost time:"<<(std::chrono::high_resolution_clock::now().time_since_epoch().count()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
+
+		if(no_child==true) {
+			return action();
+		}
+		// for(int n = 0 ; n<num_worker; n++){
+			// std::cout<<n<<std::endl;
+			// std::cout<<"roots[n]->childs.size()"<<roots[n]->childs.size()<<std::endl;
+		// }
+		//collect all visit_count
+		for(size_t i = 0 ; i<roots[0]->childs.size();i++){
+			for(int n = 1 ; n<num_worker; n++){
+				roots[0]->childs[i]->visit_count += roots[n]->childs[i]->visit_count;
 			}
 		}
-
-		total_count = 0;
-		if(root->childs.size()==0) return action();
-
 		//choose best child 
 		int index = -1;
 		float max=-100;
-		
-		if(choose=="win_rate"){
-			for(size_t i = 0 ; i <root->childs.size(); i++){
-				float cuurent_win_rate = root->childs[i]->win_count / root->childs[i]->visit_count ;
-				if(cuurent_win_rate>max){
-					max = cuurent_win_rate;
-					index = i;
-				}
+		for(size_t i = 0 ; i <roots[0]->childs.size(); i++){
+			if(roots[0]->childs[i]->visit_count>max){
+				max = roots[0]->childs[i]->visit_count;
+				index = i;
 			}
 		}
-		else if(choose=="visit_count"){
-			for(size_t i = 0 ; i <root->childs.size(); i++){
-				if(root->childs[i]->visit_count>max){
-					max = root->childs[i]->visit_count;
-					index = i;
-				}
-			}
-		}
-		else if(choose=="uct_value"){
-			for(size_t i = 0 ; i <root->childs.size(); i++){
-				if(root->childs[i]->uct_value>max){
-					max = root->childs[i]->uct_value;
-					index = i;
-				}
-			}
-		}
-		//get best child
+		// get best child
 		for (const action::place& move : space) {
 			board after = state;
 			if (move.apply(after) == board::legal){
-				if(after == root->childs[index]->state){
-					delete_node(root);
+				if(after == roots[0]->childs[index]->state){
+					for(int n = 0 ; n< num_worker ; n++) delete_node(roots[n]);
 					return move;
 				}
 			}
 		}
-		delete_node(root);
+		for(int n = 0 ; n< num_worker ; n++) delete_node(roots[n]);
 		return action();
 	}
 
@@ -175,18 +172,46 @@ public:
 		size_t child_visit_count;
 		std::vector<node*> childs;
 	};
+
+	void build_tree(struct node* root,const board& state, int n){
+		int total_count_ = 0;
+		if(timer=="y"){
+			std::clock_t start = std::clock(); // get current time
+			while(1){
+				my_turn[n] = true;
+				update_nodes[n].push_back(root);
+				insert(root,state,n);
+				if( (std::clock()-start)/ (double) CLOCKS_PER_SEC > 1) {
+					// //std::cout<<total_count<<std::endl;
+					break;
+				}
+			}
+			// std::cout<<"total_count ="<<total_count<<std::endl;
+		}
+		else if(timer=="n"){
+			while(total_count_<simulation_count){
+				my_turn[n] = true;
+				update_nodes[n].push_back(root);
+				insert(root,state,n);
+				total_count_++;
+			}
+			// std::cout<<total_count_<<std::endl;
+		}
+
+		if(root->childs.size()==0) no_child = true;
+	}
 	void delete_node(struct node * root){
 		for(size_t i = 0 ; i<root->childs.size(); i++)
 			delete_node(root->childs[i]);
 		delete(root);
 	}
-	bool simulation(struct node * current_node){
+	bool simulation(struct node * current_node,int n){
 		board after = current_node->state;
 		bool end = false;
 		bool win = true;
 		int count = 0 ;
 
-		if(my_turn==true) {
+		if(my_turn[n]==true) {
 			win = false;
 			count = 0;
 		}
@@ -194,11 +219,14 @@ public:
 			win = true;
 			count = 1;
 		}
+		std::shuffle(thread_space[n].begin(), thread_space[n].end(), engine);
+		std::shuffle(thread_opp_space[n].begin(), thread_opp_space[n].end(), engine);
+
 		while(!end){
 			bool exist_legal_move = false;
 			if(count %2 == 0 ){// my move
-				std::shuffle(space.begin(), space.end(), engine);
-				for (const action::place& move : space) {
+				// std::shuffle(thread_space[n].begin(), thread_space[n].end(), engine);
+				for (const action::place& move : thread_space[n]) {
 					if (move.apply(after) == board::legal){
 						//debug<<"count ==0 have legal move"<<std::endl;
 						win = true;
@@ -209,8 +237,8 @@ public:
 				}
 			}
 			else if(count %2 == 1 ) {// opponent move
-				std::shuffle(opp_space.begin(), opp_space.end(), engine);
-				for (const action::place& move : opp_space) {
+				// std::shuffle(thread_opp_space[n].begin(), thread_opp_space[n].end(), engine);
+				for (const action::place& move : thread_opp_space[n]) {
 					if (move.apply(after) == board::legal){
 						//debug<<"count ==1 have legal move"<<std::endl;
 						win = false;
@@ -238,11 +266,11 @@ public:
 		return current_node;
 	}
 
-	void insert(struct node* root, board state){
+	void insert(struct node* root, board state, int n){
 		// collect child
 		if(root->childs.size()==0){
-			if(my_turn==true){
-				for (const action::place& move : space) {
+			if(my_turn[n]==true){
+				for (const action::place& move : thread_space[n]) {
 					board after = state;
 					if (move.apply(after) == board::legal){
 						struct node * current_node = new_node(after);		
@@ -251,7 +279,7 @@ public:
 				}
 			}
 			else {
-				for (const action::place& move : opp_space) {
+				for (const action::place& move : thread_opp_space[n]) {
 					board after = state;
 					if (move.apply(after) == board::legal){
 						struct node * current_node = new_node(after);		
@@ -262,8 +290,8 @@ public:
 		}
 		// do simulation
 		if(root->visit_count == 0) {
-			bool win = simulation(root);
-			update(win);
+			bool win = simulation(root, n);
+			update(win,n);
 		}
 		else {
 			int index = -1;
@@ -271,15 +299,16 @@ public:
 			bool do_expand = true;
 			// check need expand or not
 			if(root->child_visit_count == root->childs.size()) do_expand = false;
-			//debug<<"child_visit_count"<<child_visit_count<<", number_of_legal_move"<<number_of_legal_move<<std::endl;
+			// std::cout<<"root->child_visit_count"<<root->child_visit_count<<std::endl;
 			if(root->childs.size()==0){
-				bool win = simulation(root);
-				update(win);
+				bool win = simulation(root, n);
+				update(win,n);
 				return;
 			} 
 
 			if(do_expand){
 				std::shuffle(root->childs.begin(), root->childs.end(), engine);
+				// std::cout<<"root->childs[0]->uct_value"<<root->childs[0]->uct_value<<std::endl;
 				for(size_t i = 0 ; i<root->childs.size(); i++){
 					if(root->childs[i]->uct_value>max && root->childs[i]->visit_count==0){
 						max = root->childs[i]->uct_value;
@@ -287,7 +316,7 @@ public:
 						root->child_visit_count++;
 					}
 				}
-				//debug<<"expand index :"<<index<<std::endl;
+				// std::cout<<"expand index :"<<index<<std::endl;
 			}else{
 				for(size_t i = 0 ; i<root->childs.size(); i++){
 					if(root->childs[i]->uct_value>max){
@@ -295,11 +324,11 @@ public:
 						index = i;
 					}
 				}
-				//debug<<"select index:"<<index<<std::endl;
+				// std::cout<<"select index:"<<index<<std::endl;
 			}
-			my_turn = !my_turn;
-			update_nodes.push_back(root->childs[index]);
-			insert(root->childs[index],root->childs[index]->state);
+			my_turn[n] = !my_turn[n];
+			update_nodes[n].push_back(root->childs[index]);
+			insert(root->childs[index],root->childs[index]->state,n);
 		}
 	}
 
@@ -307,34 +336,40 @@ public:
 		return  win_count/visit_count + weight * log(total_count) / visit_count ;
 	}
 
-	void update(bool win){
+	void update(bool win, int n){
+		// std::cout<<"update: "<<n<<std::endl; 
+		// std::cout<<"update_nodes[n].size() ;"<<update_nodes[n].size()<<std::endl;
 		float value = 0;
 		if(win) value = 1;
-		for (size_t i = 0 ; i< update_nodes.size() ; i++){
-			update_nodes[i]->visit_count++;
-			update_nodes[i]->win_count += value;		
+		for (size_t i = 0 ; i< update_nodes[n].size() ; i++){
+			update_nodes[n][i]->visit_count++;
+			update_nodes[n][i]->win_count += value;		
 			if(cond=="op_best"){	
 				if(i%2==1)
-					update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);
+					update_nodes[n][i]->uct_value = UCT_value(update_nodes[n][i]->win_count, update_nodes[n][i]->visit_count);
 				else
-					update_nodes[i]->uct_value = UCT_value(update_nodes[i]->visit_count-update_nodes[i]->win_count, update_nodes[i]->visit_count);
+					update_nodes[n][i]->uct_value = UCT_value(update_nodes[n][i]->visit_count-update_nodes[n][i]->win_count, update_nodes[n][i]->visit_count);
 			}else{
-				update_nodes[i]->uct_value = UCT_value(update_nodes[i]->win_count, update_nodes[i]->visit_count);
+				update_nodes[n][i]->uct_value = UCT_value(update_nodes[n][i]->win_count, update_nodes[n][i]->visit_count);
 			}
 		}
-		// clear total_count and update_nodes
-		update_nodes.clear();
+		// clear total_count and update_nodes[n]
+		update_nodes[n].clear();
 	}
 	float total_count = 0 ;
-	std::vector<node*> update_nodes;
-	bool my_turn;
+	std::vector<node*> update_nodes[100];
+	bool my_turn[100];
+	bool no_child = false;
 private:
 	int simulation_count;
+	int num_worker;
 	float weight;
 	std::string choose;
 	std::string timer;
 	std::string cond;
 	std::vector<action::place> space;
+	std::vector<action::place> thread_space[100];
 	std::vector<action::place> opp_space;
+	std::vector<action::place> thread_opp_space[100];
 	board::piece_type who;
 };
