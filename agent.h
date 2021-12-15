@@ -26,7 +26,7 @@
 class agent {
 public:
 	agent(const std::string& args = "") {
-		std::stringstream ss("name=unknown role=unknown " + args);
+		std::stringstream ss("name=unknown role=unknown mcts N=1000 c=1 timer=n choose=visit_count cond=0 num_worker=1 " + args);
 		for (std::string pair; ss >> pair; ) {
 			std::string key = pair.substr(0, pair.find('='));
 			std::string value = pair.substr(pair.find('=') + 1);
@@ -44,12 +44,6 @@ public:
 	virtual void notify(const std::string& msg) { meta[msg.substr(0, msg.find('='))] = { msg.substr(msg.find('=') + 1) }; }
 	virtual std::string name() const { return property("name"); }
 	virtual std::string role() const { return property("role"); }
-	virtual int a() const { return stoi(property("N")); }
-	virtual int b() const { return stoi(property("num_worker")); }
-	virtual float c() const { return stof(property("c")); }
-	virtual std::string d() const { return property("choose"); }
-	virtual std::string e() const { return property("cond"); }
-	virtual std::string f() const { return property("timer"); }
 
 
 protected:
@@ -98,27 +92,29 @@ public:
 			if(who == board::black) opp_space[i] = action::place(i, board::white);
 			if(who == board::white) opp_space[i] = action::place(i, board::black);
 		}
-		// simulation_count = stoi(property("N"));
-		// num_worker = stoi(property("num_worker"));
-		// weight = stof(property("c"));
-		// timer = property("timer");
-		// choose = property("choose");
-		// cond = property("cond");
-		// std::cout<<num_worker<<std::endl;
-		for(int i = 0 ; i < num_worker ;i++){
-			thread_space[i] = space;
-			thread_opp_space[i] = opp_space;
-		}
-	}
-	virtual action take_action(const board& state) {
 		simulation_count = stoi(property("N"));
 		num_worker = stoi(property("num_worker"));
 		weight = stof(property("c"));
 		timer = property("timer");
 		choose = property("choose");
 		cond = property("cond");
+		for(int i = 0 ; i < num_worker ;i++){
+			thread_space[i] = space;
+			thread_opp_space[i] = opp_space;
+		}
+	}
+	virtual action take_action(const board& state) {
 		std::thread threads[num_worker];
 		node* roots[num_worker];
+
+		bool no_legal_move = true;
+		for (const action::place& move : space) {
+			board after = state;
+			if (move.apply(after) == board::legal){
+				no_legal_move = false;
+			}
+		}
+		if(no_legal_move) return action();
 		std::clock_t start = std::chrono::high_resolution_clock::now().time_since_epoch().count(); // get current time
 		for(int i = 0 ;i<num_worker; i ++){
 			roots[i] = new_node(state);
@@ -128,9 +124,7 @@ public:
 		for(int i = 0 ;i<num_worker; i ++) threads[i].join();
 		std::cout<<"cost time:"<<(std::chrono::high_resolution_clock::now().time_since_epoch().count()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
 
-		if(no_child==true) {
-			return action();
-		}
+
 		// for(int n = 0 ; n<num_worker; n++){
 			// std::cout<<n<<std::endl;
 			// std::cout<<"roots[n]->childs.size()"<<roots[n]->childs.size()<<std::endl;
@@ -186,7 +180,7 @@ public:
 					break;
 				}
 			}
-			// std::cout<<"total_count ="<<total_count<<std::endl;
+			std::cout<<"total_count ="<<total_count<<std::endl;
 		}
 		else if(timer=="n"){
 			while(total_count_<simulation_count){

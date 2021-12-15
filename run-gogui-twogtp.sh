@@ -1,18 +1,18 @@
 #!/bin/bash
 echo "GoGui-TwoGTP Launcher V20211112"
 # commands for player 1
-P1B='./nogo --shell --name="Hollow-Black" --black="mcts N=200 c=0.1 timer=n choose=visit_count"'
-P1W='./nogo --shell --name="Hollow-White" --white="mcts N=200 c=0.1 timer=n choose=visit_count"'
+P1B='./nogo --shell --name="Hollow-Black" --black="mcts N=1000 c=1 timer=n choose=visit_count cond=0 num_worker=1"'
+P1W='./nogo --shell --name="Hollow-White" --white="mcts N=1000 c=1 timer=n choose=visit_count cond=0 num_worker=1"'
 # commands for local player 2
 # P2B='./nogo-judge --shell --name="Judge-Weak-Black" --black="mcts N=2000 c=0.1 unlock!"'
 # P2W='./nogo-judge --shell --name="Judge-Weak-White" --white="mcts N=2000 c=0.1 unlock!"'
-P2B='./nogo-judge --shell --name="Judge-Weak-Black" --black="weak"'
-P2W='./nogo-judge --shell --name="Judge-Weak-White" --white="weak"'
+# P2B='./nogo-judge --shell --name="Judge-Weak-Black" --black="weak"'
+# P2W='./nogo-judge --shell --name="Judge-Weak-White" --white="weak"'
 # P2B='./nogo-judge --shell --name="" --black=""'
 # P2W='./nogo-judge --shell --name="" --white=""'
 # commands for remote player 2
-#P2B="gogui-client tcglinux1 10000"
-#P2W="gogui-client tcglinux1 10000"
+P2B="gogui-client tcglinux2 10000"
+P2W="gogui-client tcglinux2 10000"
 
 # other settings
 games=${1:-10} # total games to play
