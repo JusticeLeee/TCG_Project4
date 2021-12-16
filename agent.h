@@ -123,39 +123,51 @@ public:
 		}
 		for(int i = 0 ;i<num_worker; i ++) threads[i].join();
 		std::cout<<"cost time:"<<(std::chrono::high_resolution_clock::now().time_since_epoch().count()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
-
-
-		// for(int n = 0 ; n<num_worker; n++){
-			// std::cout<<n<<std::endl;
-			// std::cout<<"roots[n]->childs.size()"<<roots[n]->childs.size()<<std::endl;
-		// }
-		//collect all visit_count
-		for(size_t i = 0 ; i<roots[0]->childs.size();i++){
-			for(int n = 1 ; n<num_worker; n++){
-				roots[0]->childs[i]->visit_count += roots[n]->childs[i]->visit_count;
+		
+		//collect best index
+		int best_index[num_worker]={0};
+		for(int n = 0 ; n<num_worker ; n++){
+			int index = -1;
+			float max=-100;
+			for(size_t i = 0 ; i <roots[n]->childs.size(); i++){
+				if(roots[n]->childs[i]->visit_count>max){
+					max = roots[n]->childs[i]->visit_count;
+					index = i ;
+				}
 			}
+			best_index[n] = index;
 		}
-		//choose best child 
-		int index = -1;
-		float max=-100;
-		for(size_t i = 0 ; i <roots[0]->childs.size(); i++){
-			if(roots[0]->childs[i]->visit_count>max){
-				max = roots[0]->childs[i]->visit_count;
-				index = i;
-			}
-		}
-		// get best child
-		for (const action::place& move : space) {
-			board after = state;
-			if (move.apply(after) == board::legal){
-				if(after == roots[0]->childs[index]->state){
-					for(int n = 0 ; n< num_worker ; n++) delete_node(roots[n]);
-					return move;
+
+		std::map<action::place, int> action_map_visit;
+		for(int n = 0; n < num_worker ;n++){
+			for (const action::place& move : space) {
+				board after = state;
+				if (move.apply(after) == board::legal){
+					if(choose=="vote"){
+						if(after == roots[n]->childs[best_index[n]]->state){
+							action_map_visit[move]+=1;
+						}
+					}else{
+						for(size_t i =0 ; i<roots[n]->childs.size();i++){
+							if(after == roots[n]->childs[i]->state)
+								action_map_visit[move] += roots[n]->childs[i]->visit_count;
+						}
+					}
 				}
 			}
 		}
+		//get best_move
+		action::place best_move;
+		float max = -100;
+		for(auto action : action_map_visit){
+			std::cout<<"action : "<<action.first<<"value :"<<action.second<<std::endl;
+			if(action.second>max){
+				max = action.second;
+				best_move = action.first;
+			}
+		}
 		for(int n = 0 ; n< num_worker ; n++) delete_node(roots[n]);
-		return action();
+		return best_move;
 	}
 
 	struct node{
@@ -191,8 +203,6 @@ public:
 			}
 			// std::cout<<total_count_<<std::endl;
 		}
-
-		if(root->childs.size()==0) no_child = true;
 	}
 	void delete_node(struct node * root){
 		for(size_t i = 0 ; i<root->childs.size(); i++)
@@ -353,7 +363,6 @@ public:
 	float total_count = 0 ;
 	std::vector<node*> update_nodes[100];
 	bool my_turn[100];
-	bool no_child = false;
 private:
 	int simulation_count;
 	int num_worker;
@@ -367,3 +376,4 @@ private:
 	std::vector<action::place> thread_opp_space[100];
 	board::piece_type who;
 };
+
