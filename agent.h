@@ -106,15 +106,7 @@ public:
 	virtual action take_action(const board& state) {
 		std::thread threads[num_worker];
 		node* roots[num_worker];
-
-		bool no_legal_move = true;
-		for (const action::place& move : space) {
-			board after = state;
-			if (move.apply(after) == board::legal){
-				no_legal_move = false;
-			}
-		}
-		if(no_legal_move) return action();
+		
 		std::clock_t start = std::chrono::high_resolution_clock::now().time_since_epoch().count(); // get current time
 		for(int i = 0 ;i<num_worker; i ++){
 			roots[i] = new_node(state);
@@ -143,24 +135,21 @@ public:
 			for (const action::place& move : space) {
 				board after = state;
 				if (move.apply(after) == board::legal){
-					if(choose=="vote"){
-						if(after == roots[n]->childs[best_index[n]]->state){
+					if(after == roots[n]->childs[best_index[n]]->state){
+						if(choose=="visit_count")
+							action_map_visit[move]+=roots[n]->childs[best_index[n]]->visit_count;
+						else{
 							action_map_visit[move]+=1;
-						}
-					}else{
-						for(size_t i =0 ; i<roots[n]->childs.size();i++){
-							if(after == roots[n]->childs[i]->state)
-								action_map_visit[move] += roots[n]->childs[i]->visit_count;
 						}
 					}
 				}
 			}
 		}
 		//get best_move
-		action::place best_move;
+		action::place best_move = action();
 		float max = -100;
 		for(auto action : action_map_visit){
-			std::cout<<"action : "<<action.first<<"value :"<<action.second<<std::endl;
+			// std::cout<<"action : "<<action.first<<"value :"<<action.second<<std::endl;
 			if(action.second>max){
 				max = action.second;
 				best_move = action.first;
@@ -376,4 +365,5 @@ private:
 	std::vector<action::place> thread_opp_space[100];
 	board::piece_type who;
 };
+
 
