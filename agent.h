@@ -103,6 +103,7 @@ public:
 			thread_opp_space[i] = opp_space;
 		}
 	}
+	virtual void close_episode(const std::string& flag = "") {step = 0;}
 	virtual action take_action(const board& state) {
 		std::thread threads[num_worker];
 		node* roots[num_worker];
@@ -110,11 +111,15 @@ public:
 		std::clock_t start = std::chrono::high_resolution_clock::now().time_since_epoch().count(); // get current time
 		for(int i = 0 ;i<num_worker; i ++){
 			roots[i] = new_node(state);
-			threads[i] = std::thread(&player::build_tree,this,roots[i],state,i);
+			threads[i] = std::thread(&player::build_tree,this,roots[i],state,i,step);
 			// std::cout<<"i: "<<i<<"cost time:"<<(std::clock()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
 		}
-		for(int i = 0 ;i<num_worker; i ++) threads[i].join();
-		std::cout<<"cost time:"<<(std::chrono::high_resolution_clock::now().time_since_epoch().count()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
+		step++;
+		for(int i = 0 ;i<num_worker; i ++) {
+			threads[i].join();
+			// std::cout<<"cost time:"<<(std::chrono::high_resolution_clock::now().time_since_epoch().count()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
+		}
+		// std::cout<<"Total wait cost time:"<<(std::chrono::high_resolution_clock::now().time_since_epoch().count()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
 		
 		//collect best index
 		int best_index[num_worker]={0};
@@ -155,6 +160,7 @@ public:
 				best_move = action.first;
 			}
 		}
+
 		for(int n = 0 ; n< num_worker ; n++) delete_node(roots[n]);
 		return best_move;
 	}
@@ -168,29 +174,33 @@ public:
 		std::vector<node*> childs;
 	};
 
-	void build_tree(struct node* root,const board& state, int n){
-		int total_count_ = 0;
+	void build_tree(struct node* root,const board& state, int n,float current_step){		
 		if(timer=="y"){
-			std::clock_t start = std::clock(); // get current time
+			float time_limit = 1;
+			// float time_limit = 15 - 0.44*current_step;
+			std::cout<<"time_limit :"<<time_limit<<std::endl;
+			std::clock_t start = std::chrono::high_resolution_clock::now().time_since_epoch().count();// get current time
 			while(1){
 				my_turn[n] = true;
 				update_nodes[n].push_back(root);
 				insert(root,state,n);
-				if( (std::clock()-start)/ (double) CLOCKS_PER_SEC > 1) {
-					// //std::cout<<total_count<<std::endl;
+				if( (std::chrono::high_resolution_clock::now().time_since_epoch().count()-start)/ (double) CLOCKS_PER_SEC > time_limit*1000) {
+					std::cout<<"total_count: "<<total_count[n]<<std::endl;
+					total_count[n] = 0 ;
 					break;
 				}
 			}
-			std::cout<<"total_count ="<<total_count<<std::endl;
 		}
+
 		else if(timer=="n"){
+			int total_count_ = 0;
 			while(total_count_<simulation_count){
 				my_turn[n] = true;
 				update_nodes[n].push_back(root);
 				insert(root,state,n);
 				total_count_++;
+				// std::cout<<total_count_<<std::endl;
 			}
-			// std::cout<<total_count_<<std::endl;
 		}
 	}
 	void delete_node(struct node * root){
@@ -203,6 +213,7 @@ public:
 		bool end = false;
 		bool win = true;
 		int count = 0 ;
+		int temp = 0;
 
 		if(my_turn[n]==true) {
 			win = false;
@@ -214,14 +225,17 @@ public:
 		}
 		std::shuffle(thread_space[n].begin(), thread_space[n].end(), engine);
 		std::shuffle(thread_opp_space[n].begin(), thread_opp_space[n].end(), engine);
+		int space_idx = 0, opp_space_idx = 0;
 
 		while(!end){
 			bool exist_legal_move = false;
 			if(count %2 == 0 ){// my move
 				// std::shuffle(thread_space[n].begin(), thread_space[n].end(), engine);
-				for (const action::place& move : thread_space[n]) {
+				// for (const action::place& move : thread_space[n]) {
+				while(space_idx<=80){
+					const action::place& move = thread_space[n][space_idx++];
 					if (move.apply(after) == board::legal){
-						//debug<<"count ==0 have legal move"<<std::endl;
+						// debug<<"count ==0 have legal move"<<std::endl;
 						win = true;
 						exist_legal_move = true;
 						count++; 
@@ -231,7 +245,9 @@ public:
 			}
 			else if(count %2 == 1 ) {// opponent move
 				// std::shuffle(thread_opp_space[n].begin(), thread_opp_space[n].end(), engine);
-				for (const action::place& move : thread_opp_space[n]) {
+				// for (const action::place& move : thread_opp_space[n]) {
+				while(opp_space_idx<=80){
+					const action::place& move = thread_opp_space[n][opp_space_idx++];
 					if (move.apply(after) == board::legal){
 						//debug<<"count ==1 have legal move"<<std::endl;
 						win = false;
@@ -245,7 +261,8 @@ public:
 				end = true;
 			}
 		}
-		total_count++;
+		total_count[n]++;
+		// std::cout<<"simulation_end"<<std::endl;
 		return win;
 	}
 
@@ -325,8 +342,8 @@ public:
 		}
 	}
 
-	float UCT_value(float win_count, float visit_count){
-		return  win_count/visit_count + weight * log(total_count) / visit_count ;
+	float UCT_value(float win_count, float visit_count, int n){
+		return  win_count/visit_count + weight * log(total_count[n]) / visit_count ;
 	}
 
 	void update(bool win, int n){
@@ -337,19 +354,20 @@ public:
 		for (size_t i = 0 ; i< update_nodes[n].size() ; i++){
 			update_nodes[n][i]->visit_count++;
 			update_nodes[n][i]->win_count += value;		
-			if(cond=="op_best"){	
-				if(i%2==1)
-					update_nodes[n][i]->uct_value = UCT_value(update_nodes[n][i]->win_count, update_nodes[n][i]->visit_count);
-				else
-					update_nodes[n][i]->uct_value = UCT_value(update_nodes[n][i]->visit_count-update_nodes[n][i]->win_count, update_nodes[n][i]->visit_count);
-			}else{
-				update_nodes[n][i]->uct_value = UCT_value(update_nodes[n][i]->win_count, update_nodes[n][i]->visit_count);
-			}
+			// if(cond=="op_best"){	
+			if(i%2==1)
+				update_nodes[n][i]->uct_value = UCT_value(update_nodes[n][i]->win_count, update_nodes[n][i]->visit_count, n);
+			else
+				update_nodes[n][i]->uct_value = UCT_value(update_nodes[n][i]->visit_count-update_nodes[n][i]->win_count, update_nodes[n][i]->visit_count, n);
+			// }else{
+			// 	update_nodes[n][i]->uct_value = UCT_value(update_nodes[n][i]->win_count, update_nodes[n][i]->visit_count, n);
+			// }
 		}
 		// clear total_count and update_nodes[n]
 		update_nodes[n].clear();
 	}
-	float total_count = 0 ;
+	int step = 0;
+	int total_count[100];
 	std::vector<node*> update_nodes[100];
 	bool my_turn[100];
 private:
