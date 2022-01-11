@@ -20,8 +20,9 @@
 #include <unistd.h>
 #include <ctime>
 #include <thread>
+
 // std::ostream& //debug = *(new std::ofstream);
-// std::ostream& //debug = //std::cout;
+// std::ostream& //debug = ////std::cout;
 
 class agent {
 public:
@@ -107,19 +108,38 @@ public:
 	virtual action take_action(const board& state) {
 		std::thread threads[num_worker];
 		node* roots[num_worker];
+		std::cout<<role()<<std::endl;
+		if(role() == "white") {
+			int idx = 0;
+			while(idx<=80) {
+				board after = state;
+				if(idx==30||idx==31||idx==32||idx==39||idx==40||idx==41||idx==48||idx==49||idx==50||std::count(temp.begin(),temp.end(), idx)){
+					idx++;
+					continue;
+				}
+				const action::place& move = space[idx];
+				if (move.apply(after) == board::illegal_not_empty){
+					temp.push_back(idx);
+					// std::cout<<"idx = "<<idx<<std::endl;
+					// std::cout<<move<<" is illegal_not_empty"<<std::endl;
+					temp.push_back(80-idx);
+					return space[80-idx];
+				}
+				idx++;
+			}
+		}
 		
 		std::clock_t start = std::chrono::high_resolution_clock::now().time_since_epoch().count(); // get current time
 		for(int i = 0 ;i<num_worker; i ++){
 			roots[i] = new_node(state);
 			threads[i] = std::thread(&player::build_tree,this,roots[i],state,i,step);
-			// std::cout<<"i: "<<i<<"cost time:"<<(std::clock()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
+			// //std::cout<<"i: "<<i<<"cost time:"<<(std::clock()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
 		}
 		step++;
 		for(int i = 0 ;i<num_worker; i ++) {
 			threads[i].join();
-			// std::cout<<"cost time:"<<(std::chrono::high_resolution_clock::now().time_since_epoch().count()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
 		}
-		// std::cout<<"Total wait cost time:"<<(std::chrono::high_resolution_clock::now().time_since_epoch().count()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
+		//std::cout<<"Total wait cost time:"<<(std::chrono::high_resolution_clock::now().time_since_epoch().count()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
 		
 		//collect best index
 		int best_index[num_worker]={0};
@@ -154,14 +174,18 @@ public:
 		action::place best_move = action();
 		float max = -100;
 		for(auto action : action_map_visit){
-			// std::cout<<"action : "<<action.first<<"value :"<<action.second<<std::endl;
+			// //std::cout<<"action : "<<action.first<<"value :"<<action.second<<std::endl;
 			if(action.second>max){
 				max = action.second;
 				best_move = action.first;
 			}
 		}
 
-		for(int n = 0 ; n< num_worker ; n++) delete_node(roots[n]);
+		start = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+		for(int i = 0 ; i< num_worker ; i++) threads[i] = std::thread(&player::delete_node,this,roots[i]);
+		for(int i = 0 ; i< num_worker ; i++) threads[i].join();
+		//std::cout<<"Delete wait cost time:"<<(std::chrono::high_resolution_clock::now().time_since_epoch().count()-start)/ (double) CLOCKS_PER_SEC<<std::endl;
+
 		return best_move;
 	}
 
@@ -176,8 +200,9 @@ public:
 
 	void build_tree(struct node* root,const board& state, int n,float current_step){		
 		if(timer=="y"){
-			float time_limit = 1;
-			// float time_limit = 15 - 0.44*current_step;
+			// float time_limit = 1;
+			float time_limit = std::max(1.0, 1 - 0.47*current_step);
+			// float time_limit = std::max(1.0, 14.7 - 0.47*current_step);
 			std::cout<<"time_limit :"<<time_limit<<std::endl;
 			std::clock_t start = std::chrono::high_resolution_clock::now().time_since_epoch().count();// get current time
 			while(1){
@@ -185,7 +210,7 @@ public:
 				update_nodes[n].push_back(root);
 				insert(root,state,n);
 				if( (std::chrono::high_resolution_clock::now().time_since_epoch().count()-start)/ (double) CLOCKS_PER_SEC > time_limit*1000) {
-					std::cout<<"total_count: "<<total_count[n]<<std::endl;
+					//std::cout<<"total_count: "<<total_count[n]<<std::endl;
 					total_count[n] = 0 ;
 					break;
 				}
@@ -199,7 +224,7 @@ public:
 				update_nodes[n].push_back(root);
 				insert(root,state,n);
 				total_count_++;
-				// std::cout<<total_count_<<std::endl;
+				// //std::cout<<total_count_<<std::endl;
 			}
 		}
 	}
@@ -213,7 +238,6 @@ public:
 		bool end = false;
 		bool win = true;
 		int count = 0 ;
-		int temp = 0;
 
 		if(my_turn[n]==true) {
 			win = false;
@@ -262,7 +286,7 @@ public:
 			}
 		}
 		total_count[n]++;
-		// std::cout<<"simulation_end"<<std::endl;
+		// //std::cout<<"simulation_end"<<std::endl;
 		return win;
 	}
 
@@ -309,7 +333,7 @@ public:
 			bool do_expand = true;
 			// check need expand or not
 			if(root->child_visit_count == root->childs.size()) do_expand = false;
-			// std::cout<<"root->child_visit_count"<<root->child_visit_count<<std::endl;
+			// //std::cout<<"root->child_visit_count"<<root->child_visit_count<<std::endl;
 			if(root->childs.size()==0){
 				bool win = simulation(root, n);
 				update(win,n);
@@ -318,7 +342,7 @@ public:
 
 			if(do_expand){
 				std::shuffle(root->childs.begin(), root->childs.end(), engine);
-				// std::cout<<"root->childs[0]->uct_value"<<root->childs[0]->uct_value<<std::endl;
+				// //std::cout<<"root->childs[0]->uct_value"<<root->childs[0]->uct_value<<std::endl;
 				for(size_t i = 0 ; i<root->childs.size(); i++){
 					if(root->childs[i]->uct_value>max && root->childs[i]->visit_count==0){
 						max = root->childs[i]->uct_value;
@@ -326,7 +350,7 @@ public:
 						root->child_visit_count++;
 					}
 				}
-				// std::cout<<"expand index :"<<index<<std::endl;
+				// //std::cout<<"expand index :"<<index<<std::endl;
 			}else{
 				for(size_t i = 0 ; i<root->childs.size(); i++){
 					if(root->childs[i]->uct_value>max){
@@ -334,7 +358,7 @@ public:
 						index = i;
 					}
 				}
-				// std::cout<<"select index:"<<index<<std::endl;
+				// //std::cout<<"select index:"<<index<<std::endl;
 			}
 			my_turn[n] = !my_turn[n];
 			update_nodes[n].push_back(root->childs[index]);
@@ -347,8 +371,8 @@ public:
 	}
 
 	void update(bool win, int n){
-		// std::cout<<"update: "<<n<<std::endl; 
-		// std::cout<<"update_nodes[n].size() ;"<<update_nodes[n].size()<<std::endl;
+		// //std::cout<<"update: "<<n<<std::endl; 
+		// //std::cout<<"update_nodes[n].size() ;"<<update_nodes[n].size()<<std::endl;
 		float value = 0;
 		if(win) value = 1;
 		for (size_t i = 0 ; i< update_nodes[n].size() ; i++){
@@ -370,6 +394,7 @@ public:
 	int total_count[100];
 	std::vector<node*> update_nodes[100];
 	bool my_turn[100];
+	std::vector<int>temp;
 private:
 	int simulation_count;
 	int num_worker;
