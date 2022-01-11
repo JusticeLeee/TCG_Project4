@@ -201,8 +201,8 @@ public:
 	void build_tree(struct node* root,const board& state, int n,float current_step){		
 		if(timer=="y"){
 			// float time_limit = 1;
-			float time_limit = std::max(1.0, 1 - 0.47*current_step);
-			// float time_limit = std::max(1.0, 14.7 - 0.47*current_step);
+			// float time_limit = std::max(1.0, 1 - 0.47*current_step);
+			float time_limit = std::max(1.0, 14.7 - 0.47*current_step);
 			std::cout<<"time_limit :"<<time_limit<<std::endl;
 			std::clock_t start = std::chrono::high_resolution_clock::now().time_since_epoch().count();// get current time
 			while(1){
